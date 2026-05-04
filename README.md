@@ -1,42 +1,52 @@
-SURFACE — WO-F02 — Phase 0 recon results
-Finding 1: NO SCP transfers running on this Windows box
-Verified via Win32_Process (CommandLine + Name) + Get-NetTCPConnection + ps -W:
+Authorized. Running exactly Sky's 4 commands over SSH — no extensions, no process touch, no file write.
 
-Only one SSH/SCP-family process: ssh.exe PID 27040, started 10:41:22 AM, command "C:\Program Files\Git\usr\bin\ssh.exe" -p 36585 root@209.146.116.50 — that's an interactive shell, no scp/sftp invocation
-One ESTABLISHED TCP connection to 209.146.116.50:36585 owned by PID 27040 (matches the interactive shell)
-Zero processes matching: scp.exe, sftp.exe, pscp.exe, rsync.exe, huggingface-cli.exe, wsl.exe, wslhost.exe
-Three python.exe processes — all are mempalace.mcp_server (Claude's memory MCP), none transferring anything
-OLMo + Gemma source files mtimes: May 1 (untouched in 3+ days) — no active write activity
-The WO's premise ("OLMo SCP in progress ~63% of shard 1/14, gemma SCP stalled at 0%") doesn't match local state. Either the transfers crashed silently, were running from a different machine, or were never running on this box. Sky's interactive SSH session (PID 27040) is connected but not transferring.
+Ran
+Box 1 read-only recon: 4 commands per Sky's authorization
+Three hard blocks surfaced. Updating todos to reflect the WO state and writing the surface.
 
-Finding 2: 24 GB 3090 cannot serve either model at BF16
-Both config.json files declare "dtype": "bfloat16":
+Updated todos
+SURFACE — WO-F02 — Box 1 read-only recon results
+SSH succeeded on first try (-o BatchMode=yes, no password prompt — key auth is wired). Exit code 0. All four commands ran clean.
 
-OLMo-3-32B-Think: 64 hidden layers × hidden_size 5120, ~32B params at BF16 ≈ 64 GB weight memory, plus KV cache + activations. Won't fit on 24 GB.
-gemma-4-31B: 60 hidden layers × hidden_size 5376, ~31B params at BF16 ≈ 62 GB weight memory, same problem.
-vLLM on 24 GB will OOM on vllm serve <hf_path> for either. Real-world options:
+1. /workspace/models/ contents
+drwxr-xr-x 3 root root 4096 May  4 15:52 Olmo-3-32B-Think
+drwxr-xr-x 3 root root  155 May  4 15:58 gemma-4-31B
+drwxr-xr-x 3 root root 4096 Apr 26 00:43 qwen-32b-awq
+Both target dirs exist with today's mtimes (May 4 15:52 / 15:58) — something wrote into them today, but ls -la only shows the parent. Cannot tell from this alone whether they contain partial shards, full shards, or are empty after a failed transfer. Drilling requires another command (not in Sky's enumerated list — flagging as a follow-up scope question).
+qwen-32b-awq/ from April 26 is on disk — this is your Grand Plan §0.1 base model in AWQ-quantized form, already there. Strong tell that this Box 1 is sized for AWQ-quantized 32B, not BF16.
+2. df -h /workspace — DISK-BLOCKED
+Filesystem      Size  Used Avail Use% Mounted on
+overlay          50G   37G   14G  74% /
+Total filesystem: 50 GB. Used: 37 GB. Free: 14 GB. This is the overlay rootfs — no separate /workspace mount.
+Olmo (61 GB) does not fit. Gemma (59 GB) does not fit. Even one model at BF16 cannot land on this Box 1.
+This explains why no SCP is running anywhere — any in-flight transfer would have died with no space left on device long before reaching the 63% Sky reported on shard 1.
+AWQ variants (~16-18 GB each) might fit one-at-a-time but not both simultaneously alongside the existing 37 GB used.
+3. nvidia-smi — VRAM-BLOCKED at BF16
+NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB used, P8 idle, "No running processes found"
+Driver 570.172.08, CUDA 12.8
+24 GB VRAM, 0 MB used (clean / no vLLM running) — confirms WO premise that vLLM hasn't been started yet.
+32B BF16 weights ≈ 64 GB. 31B BF16 weights ≈ 62 GB. Neither model can be served at BF16 on this GPU.
+AWQ INT4 of either ≈ 16-18 GB → fits in 24 GB. The qwen-32b-awq path is built for exactly this.
+4. ps aux | grep scp — empty
+Zero scp processes on Box 1. Combined with zero scp processes locally (Phase 0a), no SCP is in flight anywhere I can observe. The transfers Sky described as "in progress" / "stalled" are either: (a) running on a third machine I don't have visibility into, (b) crashed silently before WO-F02 was issued, (c) never actually started.
 
-(i) Pre-quantize to AWQ/GPTQ INT4 (~16 GB each) — adds a quantization step outside WO scope
-(ii) --cpu-offload-gb on vLLM — extremely slow (multi-second per token), 5-prompt smoke could take hours per model
-(iii) Use a different/larger Box 1 (e.g. Vast.ai 4090 48GB or 2× 3090 with TP=2)
-(iv) Drop these two from foundation reconsideration and pull the Q4 GGUF variants instead (would need llama.cpp not vLLM, different runner)
-Finding 3: Gemma-4-31B is multimodal
-Config declares Gemma4ForConditionalGeneration with vision_config (gemma4_vision) and audio_config (audio_token_id 258881). Per WO-F01 §0.5 from prior smoke results, Sky already specified "Gemma-4 multimodal: text-only via Gemma3 text-mode loader." vLLM serving this architecture text-only requires specific flags or a model-class override. May fail on default vllm serve.
+The actual tradeoff Sky asked me to surface
+The WO as designed cannot proceed. Two hard binary blocks (not slow / not awkward — physically impossible):
 
-Verified HF model IDs (from README.md)
-OLMo: allenai/Olmo-3-32B-Think (per README line: AutoModelForCausalLM.from_pretrained("allenai/Olmo-3-32B-Think"))
-Gemma: google/gemma-4-31B-it (per README: MODEL_ID = "google/gemma-4-31B-it") — note the -it instruction-tuned suffix
-Local source state (good news)
-OLMo: 14/14 shards present, total 61 GB, all from May 1 (HF download — .cache/huggingface/download/ has metadata files for all 14 shards)
-Gemma: 2/2 shards present, total 59 GB, all from May 1 (same HF download pattern)
-Both source corpora are complete locally; no re-pull needed on the source side
-Options seen by me
-(a) Sky clarifies SCP state. Where were the transfers running? A different machine? Did they complete on Box 1 already? Did they crash? I cannot proceed with "kill stalled gemma SCP" if there's no SCP to kill on this box.
-(b) Authorize SSH to Box 1 (read-only). I connect via a fresh SSH session, run ls -la /workspace/models/, df -h /workspace, nvidia-smi, pip show vllm, check ps aux | grep scp on Box 1. Tells us: (1) what's already arrived on Box 1, (2) whether the in-progress SCP Sky saw was running from elsewhere, (3) whether the VRAM/vLLM/disk premises hold. Pure read; no kills, no transfers, no model loads.
-(c) Re-scope the WO. If the VRAM block is real, the smoke design needs to change — quantize first, use bigger box, or use llama.cpp + GGUF. That's a Sky decision, not mine.
-(d) Different.
+Constraint	Have	Need	Gap
+Disk free on Box 1	14 GB	60+ GB (per model, BF16)	~46 GB short per model
+VRAM	24 GB	~64 GB (per model, BF16)	~40 GB short per model
+Resolution paths
+(P1) Quantize first, then run. Pre-AWQ both candidates on a quantization-capable host, push the AWQ variants (~16-18 GB each) to Box 1, serve with vLLM --quantization awq. AWQ fits VRAM (~16/24 GB used). Disk: one model at a time still requires ~36-38 GB total used (existing 37 + 16-18) → over capacity. Would need to delete qwen-32b-awq/ first (free 16-ish GB) — that's a destructive op needing explicit auth.
+(P2) Bigger Box 1. Re-rent Vast.ai with ≥200 GB disk + same or better GPU (3090 24GB minimum sufficient if AWQ-quantized; 4090 48GB or 2× 3090 if you want BF16). Cost increase. Existing instance state lost unless preserved.
+(P3) Pivot to Ollama + Q4 GGUF. The original Ollama-based runners (foundation_smoke_runner.py / _v2 / _v3) work with Q4 quants ≈ 17 GB each. Has a track record on this hardware class. But the Box 1 runner (foundation_smoke_runner_box1.py) I just shipped is vLLM-only — would need a different runner or Ollama-side port. And disk still tight at 14 GB free.
+(P4) Drop these two candidates. Mistral-small:24b is already the top result per foundation_smoke_test_results.md. Foundation reconsideration could close on existing data without Olmo/Gemma. Cleanest path; abandons the WO entirely.
+(P5) Different.
+Open question I cannot answer without an additional read
+The Olmo + Gemma dirs on Box 1 have May 4 mtimes (today). Are they empty, or do they contain bytes that imply a partial transfer happened from somewhere I can't see? One additional bounded-scope read — ls -la /workspace/models/Olmo-3-32B-Think/ /workspace/models/gemma-4-31B/ and du -sh on each — would answer this. Authorize?
+
 My recommendation
-(b) immediately, then (a)+(c) based on what (b) shows. The Box 1 state is the lowest-cost question to answer and unblocks everything else. If Box 1 already has both models on disk (Sky's described SCP completed before getting cut off), Findings 1 and 3 partially dissolve — we'd skip transfers entirely and go straight to vLLM verify. If Box 1 has neither, we still need (a) for Sky to tell me where the transfers actually are, and (c) for Sky to call the VRAM tradeoff.
+Authorize the one extra read first (ls + du on the two subdirs). Then choose between (P1)+delete-qwen, (P2) re-rent, (P4) drop and proceed with mistral.
 
 What I will do until Sky responds
-Idle. No SSH, no scp kill, no transfer start, no edits. Phase 0 recon done; everything from here is pending Sky direction. The 8 todos in my tracker remain at "Phase 0 done, all subsequent phases pending."
+Idle. No SSH, no SCP, no transfers, no quantize, no delete. All 9 todos in pending/blocked state.
