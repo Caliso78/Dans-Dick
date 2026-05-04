@@ -1,46 +1,58 @@
-WO-F05 has explicit phase gates ("Do not modify anything until Phase 1 is confirmed"). Phase 1 is read-only with confirmation required before Phase 2. Re-reading the Grand Plan now per CLAUDE.md "re-read before edit" rule.
+Authorized. Executing 4 Grand Plan edits in 2 batches (CLAUDE.md cap = 3 edits per file before re-verify), then Phase 3 + 4 as a single Write since both populate the same new file.
 
 
-Read 2 files, found files
-Phase 1 reads complete. Verifying Mistral-Small disk size for the new §0.1 entry text proposal (read-only).
+Edited 3 files
+3 of 4 Grand Plan edits done. Re-verify before batch 2.
 
 
-Ran a command, updated todos
-WO-F05 Phase 1 — REPORT (read-only, awaiting confirmation)
-Current §0.1 Platform — VERBATIM (lines 12-19)
-### 0.1 Platform
-- **Base model:** Qwen 2.5 32B (V3 merged foundation, 62GB, already on disk)
-- **Training framework:** Unsloth QLoRA r=16 alpha=32
-- **Adapter format:** PEFT LoRA + GGUF export
-- **Serving:** vLLM multi-LoRA (replaces Ollama — migration required, non-negotiable)
-- **Language:** Python 3.11+ stdlib-first (avoid pip deps where feasible)
-- **Database:** SQLite WAL mode for local, PostgreSQL for production clients
-- **OS targets:** Linux (pod/prod) + Windows 11 (dev machine, Sky's box)
-The replacement target is line 13 only (the **Base model:** line). The other 6 lines stay.
+Read 2 files
+3 edits verified. Batch 2: insert v1.6 entry in §12 + bump end-of-doc line.
 
-Disk verification (read-only, just ran)
-D:\danconi_AI\data\models\foundations\Mistral-Small-3.2-24B-Instruct-2506\ = 45 GB (17 files; corrects my earlier ~47GB estimate)
-D:\danconi_AI\docs\decisions\ exists (Apr 23 mtime, contains 9 prior decision/scoping memos including F3/F5/F6 scoping memos and capability_routing investigation memo). Phase 3 file create will not need mkdir.
-Proposed Phase 2 changes (NOT yet applied)
-Change 1 — replace line 13 of DANCONI_GRAND_PLAN_v1.md:
 
-Old:
+Edited a file, ran a command
+All 5 logical Grand Plan changes verified clean. The two Qwen 2.5 32B leftovers (lines 522, 524) are inside the new v1.6 amendment entry — intentional historical references explaining what was changed. Correct.
 
-- **Base model:** Qwen 2.5 32B (V3 merged foundation, 62GB, already on disk)
-Proposed new:
+Phase 3 + 4: writing the decisions file with both content blocks in one Write.
 
-- **Base model:** Mistral-Small 3.2 24B Instruct 2506 (Apache 2.0; BF16 safetensors at D:\danconi_AI\data\models\foundations\Mistral-Small-3.2-24B-Instruct-2506; 45GB on disk)
-Change 2 — add the one-line amendment note. Two reasonable placement options; I'm flagging this for your call rather than picking unilaterally:
 
-(a) Inline under §0.1 — keeps everything localized to §0.1 and respects "Do not change any other section":
-- **Base model:** Mistral-Small 3.2 24B Instruct 2506 (Apache 2.0; BF16 safetensors at D:\danconi_AI\data\models\foundations\Mistral-Small-3.2-24B-Instruct-2506; 45GB on disk)
-  - *2026-05-04 amendment: WO-F04 smoke: base-level CVE fabrication on P3. Replaced per evidence.*
-(b) New entry in §12 Version History — matches the pattern of v1.1 through v1.5 amendments:
-- **v1.6** — Amendment 6, locked 2026-05-04 by Sky explicit lock-override. §0.1 base model: Qwen 2.5 32B → Mistral-Small 3.2 24B Instruct 2506. WO-F04 smoke: base-level CVE fabrication on P3. Replaced per evidence.
-Open sub-question: if (b), should the header line 1 (v1.5 (IMMOVABLE) → v1.6 (IMMOVABLE)), the lock-date list on line 2, and end-of-doc line 523 (END OF GRAND PLAN v1.5) also bump to v1.6? Strict "exactly one change + amendment note" reading says no. But leaving header at v1.5 while §12 has a v1.6 entry creates an internal inconsistency that prior amendments did NOT have (every prior amendment bumped the header in lockstep — line 1 already shows v1.5 and line 2 lists v1.5's lock date).
+Created a file, ran a command, updated todos
+WO-F05 — COMPLETE
+Exit conditions — all PASS
+#	Condition	Result
+1	Phase 1 report printed — exact old §0.1 text confirmed before any edit	✅ surfaced verbatim, you confirmed option (b) before any write
+2	DANCONI_GRAND_PLAN_v1.md amended with exactly the change set	✅ 5 logical changes via 4 textual edits, all grep-verified
+3	F05_foundation_amendment.md created with full decision record	✅ 118 lines / 9,432 bytes
+4	No other files modified	✅ only the 2 files Sky authorized
+Grand Plan changes (verified by grep)
+Location	Change
+Line 1	# DANCONI AI — GRAND PLAN v1.5 (IMMOVABLE) → v1.6 (IMMOVABLE)
+Line 2	Lock-date list appended · 2026-05-04 (v1.6 amendment)
+Line 13	Base model: Qwen 2.5 32B (V3 merged...) → Base model: Mistral-Small 3.2 24B Instruct 2506 (Apache 2.0; ...; 45GB on disk)
+Line 14 (new)	Inline note: 2026-05-04 amendment: WO-F04 smoke: base-level CVE fabrication on P3. Replaced per evidence.
+Lines 521–539 (new)	§12 v1.6 amendment entry (multi-line, follows the v1.1–v1.5 pattern, includes rationale + cross-reference to F05_foundation_amendment.md)
+Line 542	END OF GRAND PLAN v1.5. → END OF GRAND PLAN v1.6.
+The two remaining Qwen 2.5 32B mentions in the file are inside the new §12 v1.6 entry — intentional historical references explaining what was changed (lines 522: "Qwen 2.5 32B → Mistral-Small..." and 524: "the Qwen 2.5 32B base fabricates on the P3..."). No leftover Qwen references in §0.1 or any other live config.
 
-My recommendation
-Option (b) for the amendment note + bump the header to v1.6 in lockstep (3 small textual fixes: line 1, line 2 lock-date list, line 523). Reasoning: the existing pattern in §12 is consistent header+§12 bumps. Inconsistency between header and §12 would be a known confusion the next reader would have to resolve. The phrase "exactly one change + amendment note" reads naturally as "one logical amendment, with consistent housekeeping," matching how v1.1 through v1.5 were applied. (a) is also defensible if you prefer minimal-touch.
+File grew 524 → 542 lines (+18, all from the v1.6 §12 entry).
 
-What I will do until Sky confirms
-Idle. No edits to DANCONI_GRAND_PLAN_v1.md. No new file in docs/decisions/. Phase 1 report stands. Awaiting your confirmation to proceed to Phase 2 with either (a), (b), or a different proposal.
+docs/decisions/F05_foundation_amendment.md — 8 sections, 118 lines
+Decision summary
+Old §0.1 verbatim
+New §0.1 verbatim
+WO-F04 evidence summary (full per-prompt table + P3 fabrication detail + base-vs-training conclusion)
+Why Mistral-Small 3.2 24B Instruct 2506 (smoke matrix citation)
+Qwen 2.5 32B retired — preserved-but-not-deleted note (matches WO-F05 constraint)
+V6 planning notes (Phase 4 content):
+New base + Apache 2.0
+AWQ quantize ~14 GB to fit Box 1 — flagged the qwen-32b-awq deletion as separate Sky authorization required (per WO-F05 constraint)
+V6 training proceeds on new base post-AWQ
+Corpus audit/repair from WO-R01 carries forward, base-model-agnostic
+DEF-11 hallucination gate still applies, threshold ≥9/11
+Cross-references (Grand Plan §12 entry, WO-F04 records on Box 1, WO-R01 deliverables, smoke matrix files, MemPalace landing drawer)
+What I did NOT do (constraints honored)
+Did not delete qwen-32b-awq. The 19 GB AWQ on Box 1 (/workspace/models/qwen-32b-awq/, mtime Apr 26) and the 62 GB V3 merged foundation on local Windows remain on disk. Both flagged in §6 of the decision record as preserved historical evidence. Deletion requires separate Sky authorization per WO-F05.
+Did not modify any training scripts. foundation_smoke_runner_box1.py, corpus tools, def_gate_runner.py — all untouched in this WO.
+Did not modify corpus files. Corpus directory tree on local Windows untouched.
+Did not touch Box 1. No SSH, no vLLM, no installs, no transfers in this WO.
+Did not write to MemPalace. Per Rule 3 (file enumeration exact) — WO-F05 enumerated only the two file targets above. The MemPalace update from earlier in the session covered through WO-F02; if you want WO-F03/F04/F05 added to that drawer set, that's a separate ask.
+Idle. Awaiting next direction.
